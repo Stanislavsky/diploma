@@ -1,0 +1,144 @@
+.adminPanel {
+  display: flex;
+  gap: var(--spacing-xl);
+  height: 100%;
+  padding: var(--spacing-lg);
+  background-color: var(--background-color);
+  position: relative;
+}
+
+.searchPanel {
+  width: 300px;
+  background-color: var(--surface-color);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  height: fit-content;
+  position: sticky;
+  top: 128px;
+  z-index: 1;
+}
+
+.searchTitle {
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 1px solid var(--secondary-color);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-normal);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.searchLabel {
+  display: block;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+  align-items: stretch;
+  background-color: var(--background-color);
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-lg);
+}
+
+.chatModal {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  z-index: 10000;
+}
+
+.notificationsPanel {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.notificationsContent {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm);
+}
+
+.bellIcon {
+  width: 24px;
+  height: 24px;
+  color: var(--primary-color);
+  opacity: 0.8;
+}
+
+.notificationsText {
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  margin: 0;
+}
+
+@media (max-width: 1200px) {
+  .container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .adminPanel {
+    flex-direction: column;
+  }
+  
+  .searchPanel {
+    width: 100%;
+    position: static;
+  }
+  
+  .container {
+    grid-template-columns: 1fr;
+    padding: var(--spacing-md);
+  }
+
+  .chatModal {
+    max-height: 80vh;
+  }
+}

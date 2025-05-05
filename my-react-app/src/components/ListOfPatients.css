@@ -1,0 +1,120 @@
+.container{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+.row{
+    display: flex;
+    flex-wrap: wrap;
+}
+.row-div{
+    padding: 15px;
+    margin: 0 auto;
+    border: 1px solid gold;
+}
+.col-3{
+    width: calc(25% - 20px);
+}
+.col-12{
+    width: calc(100% - 20px);
+}
+
+.patients-list {
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.patients-header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--secondary-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patients-title {
+  font-size: var(--font-size-xl);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.patients-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.patients-table th,
+.patients-table td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--secondary-color);
+}
+
+.patients-table th {
+  background-color: var(--background-color);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.patients-table tr:hover {
+  background-color: var(--background-color);
+}
+
+.patient-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.action-button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-normal);
+}
+
+.edit-button {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+.edit-button:hover {
+  background-color: var(--primary-dark);
+}
+
+.delete-button {
+  background-color: var(--error-color);
+  color: white;
+}
+
+.delete-button:hover {
+  opacity: 0.9;
+}
+
+.patient-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.status-active {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.status-inactive {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .patients-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
