@@ -1,0 +1,19 @@
+{% extends "admin/widgets/related_widget_wrapper.html" %}
+{% load i18n %}
+
+{% block links %}
+    {% if can_change_related %}
+    <a class="related-widget-wrapper-link change-related" id="change_id_{{ name }}"
+        data-href-template="{{ change_related_template_url }}?{{ url_params }}"
+        title="{% blocktranslate %}Change selected {{ model }}{% endblocktranslate %}">
+        <img src="{% static 'admin/img/icon-changelink.svg' %}" alt="{% translate 'Change' %}">
+    </a>
+    {% endif %}
+    {% if can_view_related %}
+    <a class="related-widget-wrapper-link view-related" id="view_id_{{ name }}"
+        data-href-template="{{ change_related_template_url }}?{{ url_params }}"
+        title="{% blocktranslate %}View selected {{ model }}{% endblocktranslate %}">
+        <img src="{% static 'admin/img/icon-viewlink.svg' %}" alt="{% translate 'View' %}">
+    </a>
+    {% endif %}
+{% endblock %} 

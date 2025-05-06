@@ -16,10 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from users.admin import DoctorAndAdminUserAdmin  
+from users.admin import DoctorAndAdminUserAdmin 
+from users.admin import custom_admin_site  
 
 urlpatterns = [
-    path('admin/', admin.site.urls),  
-    path('staff-admin/', admin.site.urls),  
+    path('admin/', admin.site.urls),  # стандартная админка Django
+    path('staff-admin/', custom_admin_site.urls),  # кастомная админка
     path('', include('users.urls')), 
 ]

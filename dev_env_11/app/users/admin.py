@@ -4,7 +4,12 @@ from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import StaffRole
-from django.urls import resolve
+from django.urls import resolve, reverse
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+from django.db import transaction
+from django.shortcuts import redirect
+from django.db.models import Q
 
 
 class CustomAdminSite(admin.AdminSite):
@@ -15,7 +20,7 @@ class CustomAdminSite(admin.AdminSite):
     def has_permission(self, request):
         return request.user.is_active and request.user.is_staff
 
-custom_admin_site = CustomAdminSite(name='custom_admin')
+custom_admin_site = CustomAdminSite(name='staff-admin')
 
 # --- Форма создания пользователя ---
 class CustomUserCreationForm(forms.ModelForm):
@@ -35,7 +40,7 @@ class CustomUserCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password1"])  # Хешируем пароль
+        user.set_password(self.cleaned_data["password1"])
         if commit:
             user.save()
         return user
@@ -59,7 +64,7 @@ class CustomUserChangeForm(forms.ModelForm):
         user = super().save(commit=False)
         password = self.cleaned_data.get("password")
         if password:
-            user.set_password(password)  # Хешируем новый пароль
+            user.set_password(password)
         if commit:
             user.save()
         return user
@@ -89,93 +94,138 @@ class DoctorAndAdminUserAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-
-        # Получаем текущий путь (URL)
-        current_url = resolve(request.path_info).url_name
-
-        # Фильтрация пользователей только в /staff-admin/
-        if current_url == 'staff-admin':
-            roles_allowed = ['admin', 'doctor']
-            user_ids = StaffRole.objects.filter(role__in=roles_allowed).values_list('user_id', flat=True)
-            return qs.filter(id__in=user_ids, is_superuser=False)
-
-        # Для /admin/ показываем всех пользователей (стандартное поведение для суперпользователей)
-        if request.user.is_superuser:
-            return qs
-
-        # Для других пользователей применяем фильтрацию по ролям
-        roles_allowed = ['admin', 'doctor']
-        user_ids = StaffRole.objects.filter(role__in=roles_allowed).values_list('user_id', flat=True)
-        return qs.filter(id__in=user_ids, is_superuser=False)
+        current_user_role = StaffRole.objects.filter(user=request.user).first()
+        
+        if current_user_role and current_user_role.role == 'support':
+            return qs.filter(staffrole__role__in=['admin', 'doctor', 'support'])
+        else:
+            return qs.filter(staffrole__role__in=['admin', 'doctor'])
 
 
 # --- Админка модели StaffRole ---
+class RoleFilter(admin.SimpleListFilter):
+    title = 'Роль'
+    parameter_name = 'role'
+
+    def lookups(self, request, model_admin):
+        current_user_role = StaffRole.objects.filter(user=request.user).first()
+        
+        if current_user_role and current_user_role.role == 'support':
+            return [
+                ('', '---------'),
+                ('doctor', 'Врач'),
+                ('admin', 'Системный администратор'),
+                ('support', 'Техническая поддержка'),
+            ]
+        else:
+            return [
+                ('', '---------'),
+                ('doctor', 'Врач'),
+                ('admin', 'Системный администратор'),
+            ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(role=self.value())
+        return queryset
+
+
 class StaffRoleAdmin(admin.ModelAdmin):
     list_display = ('user', 'role')
     search_fields = ('user__username',)
-
-    def formfield_for_choice_field(self, db_field, request, **kwargs):
-        if db_field.name == "role":
-            try:
-                staff_role = StaffRole.objects.get(user=request.user)
-            except StaffRole.DoesNotExist:
-                return super().formfield_for_choice_field(db_field, request, **kwargs)
-
-            if request.user.is_superuser:
-                return super().formfield_for_choice_field(db_field, request, **kwargs)
-
-            if staff_role.role == 'admin':
-                kwargs['choices'] = [
-                    ('doctor', 'Врач'),
-                    ('admin', 'Системный администратор'),
-                ]
-            elif staff_role.role == 'support':
-                kwargs['choices'] = [
-                    ('doctor', 'Врач'),
-                    ('admin', 'Системный администратор'),
-                    ('support', 'Сопровождающий программы'),
-                ]
-        return super().formfield_for_choice_field(db_field, request, **kwargs)
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "user":
-            try:
-                staff_role = StaffRole.objects.get(user=request.user)
-            except StaffRole.DoesNotExist:
-                return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-            if not request.user.is_superuser and staff_role.role == 'admin':
-                support_user_ids = StaffRole.objects.filter(role='support').values_list('user_id', flat=True)
-                kwargs["queryset"] = User.objects.exclude(id__in=support_user_ids).exclude(is_superuser=True)
-            elif not request.user.is_superuser:
-                kwargs["queryset"] = User.objects.exclude(is_superuser=True)
-
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    list_filter = (RoleFilter,)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if request.user.is_superuser:
+        # Если суперпользователь и стандартная админка — показываем всё
+        if request.user.is_superuser and request.path.startswith('/admin/'):
             return qs
+        current_user_role = StaffRole.objects.filter(user=request.user).first()
+        if current_user_role and current_user_role.role == 'support':
+            return qs.filter(role__in=['admin', 'doctor', 'support', ''])
+        else:
+            return qs.filter(role__in=['admin', 'doctor', ''])
 
-        try:
-            staff_role = StaffRole.objects.get(user=request.user)
-        except StaffRole.DoesNotExist:
-            return qs.none()
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "user":
+            # Если суперпользователь и стандартная админка — показываем всех пользователей
+            if request.user.is_superuser and request.path.startswith('/admin/'):
+                kwargs["queryset"] = User.objects.all().order_by('username')
+            else:
+                current_user_role = StaffRole.objects.filter(user=request.user).first()
+                if current_user_role and current_user_role.role == 'support':
+                    kwargs["queryset"] = User.objects.filter(
+                        Q(staffrole__role__in=['admin', 'doctor', 'support', '']) |
+                        Q(staffrole__isnull=True)
+                    ).filter(is_superuser=False).distinct().order_by('username')
+                else:
+                    kwargs["queryset"] = User.objects.filter(
+                        Q(staffrole__role__in=['admin', 'doctor', '']) |
+                        Q(staffrole__isnull=True)
+                    ).filter(is_superuser=False).distinct().order_by('username')
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
-        roles_allowed = ['admin', 'doctor']
-        return qs.filter(role__in=roles_allowed).exclude(user__is_superuser=True)
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == "role":
+            # Если суперпользователь и стандартная админка — показываем все роли
+            if request.user.is_superuser:
+                kwargs['choices'] = [
+                    ('', '---------'),
+                    ('doctor', 'Врач'),
+                    ('admin', 'Системный администратор'),
+                    ('support', 'Техническая поддержка'),
+                ]
+            else:
+                current_user_role = StaffRole.objects.filter(user=request.user).first()
+                if current_user_role and current_user_role.role == 'support':
+                    kwargs['choices'] = [
+                        ('', '---------'),
+                        ('doctor', 'Врач'),
+                        ('admin', 'Системный администратор'),
+                        ('support', 'Техническая поддержка'),
+                    ]
+                else:
+                    kwargs['choices'] = [
+                        ('', '---------'),
+                        ('doctor', 'Врач'),
+                        ('admin', 'Системный администратор'),
+                    ]
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
 
-    def save_model(self, request, obj, form, change):
-        if obj.user.is_superuser and not request.user.is_superuser:
-            raise PermissionError("Нельзя назначить роль суперпользователю.")
-        super().save_model(request, obj, form, change)
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_save_and_add_another'] = False
+        extra_context['show_save_and_continue'] = False
+        extra_context['show_add_another'] = False
+        extra_context['has_add_permission'] = False
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def add_view(self, request, form_url='', extra_context=None):
+        return redirect('staff-admin:auth_user_add')
+
+    def delete_model(self, request, obj):
+        if obj.user:
+            super().delete_model(request, obj)
+            obj.user.delete()
+        else:
+            super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            if obj.user:
+                super().delete_model(request, obj)
+                obj.user.delete()
 
 
-# --- Регистрация в админке ---
-admin.site.unregister(User)
-admin.site.register(User, DoctorAndAdminUserAdmin)
-admin.site.register(StaffRole, StaffRoleAdmin)
-
-# Регистрация моделей в кастомном админ-сайте
+# --- Регистрация в кастомном админ-сайте ---
 custom_admin_site.register(User, DoctorAndAdminUserAdmin)
+admin.site.register(StaffRole, StaffRoleAdmin)
 custom_admin_site.register(StaffRole, StaffRoleAdmin)
+
+@receiver(post_delete, sender=StaffRole)
+def delete_user_on_staff_role_delete(sender, instance, **kwargs):
+    if instance.user_id:
+        try:
+            User.objects.filter(id=instance.user_id).delete()
+        except Exception:
+            pass

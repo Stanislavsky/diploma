@@ -1,13 +1,17 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import StaffRole, Notification
+from .models import StaffRole
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    is_doctor = serializers.SerializerMethodField()
+    is_support = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'role')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 
+                 'role', 'is_admin', 'is_doctor', 'is_support')
 
     def get_role(self, obj):
         try:
@@ -16,26 +20,27 @@ class UserSerializer(serializers.ModelSerializer):
         except StaffRole.DoesNotExist:
             return None
 
+    def get_is_admin(self, obj):
+        try:
+            staff_role = StaffRole.objects.get(user=obj)
+            return staff_role.is_admin
+        except StaffRole.DoesNotExist:
+            return False
+
+    def get_is_doctor(self, obj):
+        try:
+            staff_role = StaffRole.objects.get(user=obj)
+            return staff_role.is_doctor
+        except StaffRole.DoesNotExist:
+            return False
+
+    def get_is_support(self, obj):
+        try:
+            staff_role = StaffRole.objects.get(user=obj)
+            return staff_role.is_support
+        except StaffRole.DoesNotExist:
+            return False
+
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-
-class NotificationSerializer(serializers.ModelSerializer):
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
-    created_at = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S', read_only=True)
-
-    class Meta:
-        model = Notification
-        fields = [
-            'id',
-            'title',
-            'content',
-            'created_by',
-            'created_by_username',
-            'created_at',
-            'status',
-            'assigned_to',
-            'assigned_to_username'
-        ]
-        read_only_fields = ['created_by', 'created_at'] 
+    password = serializers.CharField(write_only=True) 
