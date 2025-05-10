@@ -18,9 +18,15 @@ class CustomAdminSite(admin.AdminSite):
     index_title = 'Добро пожаловать в панель администратора'
 
     def has_permission(self, request):
-        return request.user.is_active and request.user.is_staff
+        # Логирование информации о пользователе
+        user_role = StaffRole.objects.filter(user=request.user).first()
+        if user_role:
+            print(f"User: {request.user.username}, Role: {user_role.role}")  # Логируем роль
+            return user_role.role in ['admin', 'doctor', 'support']
+        print("No role found or user not authorized")
+        return False
 
-custom_admin_site = CustomAdminSite(name='staff-admin')
+
 
 # --- Форма создания пользователя ---
 class CustomUserCreationForm(forms.ModelForm):
@@ -218,9 +224,9 @@ class StaffRoleAdmin(admin.ModelAdmin):
 
 
 # --- Регистрация в кастомном админ-сайте ---
-custom_admin_site.register(User, DoctorAndAdminUserAdmin)
+# custom_admin_site.register(User, DoctorAndAdminUserAdmin)
 admin.site.register(StaffRole, StaffRoleAdmin)
-custom_admin_site.register(StaffRole, StaffRoleAdmin)
+# custom_admin_site.register(StaffRole, StaffRoleAdmin)
 
 @receiver(post_delete, sender=StaffRole)
 def delete_user_on_staff_role_delete(sender, instance, **kwargs):

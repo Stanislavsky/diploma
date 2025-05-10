@@ -30,6 +30,10 @@ class LoginView(APIView):
         if user:
             login(request, user)
             staff_role = StaffRole.objects.filter(user=user).first()
+            role = staff_role.role if staff_role else None
+            is_admin = role == 'admin'
+            is_doctor = role == 'doctor'
+            is_support = role == 'support'
             return Response({
                 'user': {
                     'id': user.id,
@@ -37,10 +41,10 @@ class LoginView(APIView):
                     'email': user.email,
                     'is_staff': user.is_staff,
                     'is_superuser': False,  
-                    'role': staff_role.role if staff_role else None,
-                    'is_admin': staff_role and staff_role.role == 'admin',
-                    'is_doctor': staff_role and staff_role.role == 'doctor',
-                    'is_support': staff_role and staff_role.role == 'support'
+                    'role': role,
+                    'is_admin': is_admin,
+                    'is_doctor': is_doctor,
+                    'is_support': is_support
                 }
             })
         return Response({'error': 'Неверные учетные данные'}, status=status.HTTP_400_BAD_REQUEST)
@@ -52,13 +56,13 @@ class CheckAuthView(APIView):
         try:
             staff_role = StaffRole.objects.get(user=request.user)
             role = staff_role.role
+            is_admin = role == 'admin'
             is_doctor = role == 'doctor'
-            is_admin = role == 'admin' or request.user.is_staff
             is_support = role == 'support'
         except StaffRole.DoesNotExist:
             role = None
+            is_admin = False
             is_doctor = False
-            is_admin = request.user.is_staff
             is_support = False
         
         return Response({
@@ -90,12 +94,11 @@ def check_auth(request):
     user = request.user
     user_groups = [group.name for group in user.groups.all()]
     staff_role = StaffRole.objects.filter(user=user).first()
-    
-    # Определяем роли на основе текущей роли пользователя
-    is_doctor = staff_role and staff_role.role == 'doctor'
-    is_admin = staff_role and staff_role.role == 'admin'
-    is_support = staff_role and staff_role.role == 'support'
-    
+    role = staff_role.role if staff_role else None
+    is_admin = role == 'admin'
+    is_doctor = role == 'doctor'
+    is_support = role == 'support'
+    # Исправление: только один флаг true, остальные false, независимо от названия роли
     return Response({
         'user': {
             'id': user.id,
@@ -103,8 +106,10 @@ def check_auth(request):
             'email': user.email,
             'is_staff': user.is_staff,
             'is_superuser': False,  # Всегда false для обычных пользователей
-            'is_admin': is_admin,  # Только если роль точно 'admin'
-            'is_support': is_support,  # Только если роль точно 'support'
+            'role': role,
+            'is_admin': is_admin,
+            'is_doctor': is_doctor,
+            'is_support': is_support,
             'groups': user_groups
         }
     })
